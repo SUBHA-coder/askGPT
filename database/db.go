@@ -114,22 +114,27 @@ func SaveChatHistory(userID primitive.ObjectID, messages []string) error {
 	return err
 }
 
-func GetChatHistory(userID primitive.ObjectID) ([]ChatHistory, error) {
+func GetChatHistory(userID primitive.ObjectID) ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := chatCollection.Find(ctx, bson.M{"user_id": userID})
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var chats []ChatHistory
-	if err = cursor.All(ctx, &chats); err != nil {
+	var chat ChatHistory
+	err := chatCollection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&chat)
+	if err == mongo.ErrNoDocuments {
+		return []string{}, nil
+	} else if err != nil {
 		return nil, err
 	}
 
-	return chats, nil
+	return chat.Messages, nil
+}
+
+func ClearChatHistory(userID primitive.ObjectID) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := chatCollection.DeleteOne(ctx, bson.M{"user_id": userID})
+	return err
 }
 
 func GetUserByID(id primitive.ObjectID) (*User, error) {

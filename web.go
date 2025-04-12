@@ -128,9 +128,11 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	session.Save(r, w)
 
 	// Load user's chat history
-	messages, err = database.GetChatHistory(user.ID)
+	chatMessages, err := database.GetChatHistory(user.ID)
 	if err != nil {
 		messages = make([]string, 0)
+	} else {
+		messages = chatMessages
 	}
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
