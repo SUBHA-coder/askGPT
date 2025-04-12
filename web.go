@@ -55,6 +55,20 @@ var (
 	clientsMu sync.Mutex
 )
 
+// Add these template functions
+var templateFuncs = template.FuncMap{
+	"contains": strings.Contains,
+	"trimPrefix": strings.TrimPrefix,
+	"formatMessage": formatMessage,
+}
+
+// Add this function to format messages
+func formatMessage(content string) template.HTML {
+	// Warning: Be careful with template.HTML as it bypasses XSS protection
+	// In a production environment, you should properly sanitize the content
+	return template.HTML(content)
+}
+
 func main() {
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
@@ -197,9 +211,8 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmpl := template.Must(template.New("index.html").Funcs(template.FuncMap{
-		"contains": strings.Contains,
-	}).ParseFiles("templates/index.html"))
+	// Create template with functions
+	tmpl := template.Must(template.New("index.html").Funcs(templateFuncs).ParseFiles("templates/index.html"))
 
 	data := PageData{
 		Messages: messages,
@@ -226,7 +239,6 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Only add to messages, don't broadcast (will be handled by WebSocket)
 	messages = append(messages, "You: "+userMessage)
 
 	requestBody := GroqRequest{
@@ -276,16 +288,26 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := groqResponse.Choices[0].Message.Content
-	messages = append(messages, "AI: "+response)
 
-	// Save updated chat history
+	// Format the response for code blocks
+	formattedResponse := formatAIResponse(response)
+	messages = append(messages, "AI: "+formattedResponse)
+
+	// Save chat history
 	if err := database.SaveChatHistory(user.ID, messages); err != nil {
 		fmt.Println("Error saving chat history:", err)
 	}
 
-	// Send response back to client
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"response": response})
+	// Send response to WebSocket clients
+	broadcastMessage("AI: " + formattedResponse)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// Add this helper function to format AI responses
+func formatAIResponse(response string) string {
+	// You can add more formatting logic here if needed
+	return response
 }
 
 func handleNewChat(w http.ResponseWriter, r *http.Request) {
