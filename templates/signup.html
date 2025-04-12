@@ -6,33 +6,47 @@
     <title>Sign Up - AskGPT</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-    <div class="container">
+<body class="auth-body">
+    <div class="auth-container">
         <div class="auth-box">
-            <h1>Create an Account</h1>
+            <div class="auth-header">
+                <img src="/static/img/logo.png" alt="AskGPT Logo" class="auth-logo">
+                <h1>Create Account</h1>
+                <p class="auth-subtitle">Start your journey with AskGPT</p>
+            </div>
+
             {{if .Error}}
             <div class="error-message">{{.Error}}</div>
             {{end}}
-            <form action="/signup" method="POST">
+
+            <form action="/signup" method="POST" class="auth-form">
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required>
+                    <div class="input-floating">
+                        <input type="text" id="username" name="username" required>
+                        <label for="username">Username</label>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" required>
+                    <div class="input-floating">
+                        <input type="email" id="email" name="email" required>
+                        <label for="email">Email address</label>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required>
+                    <div class="input-floating">
+                        <input type="password" id="password" name="password" required>
+                        <label for="password">Password</label>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label for="confirm_password">Confirm Password</label>
-                    <input type="password" id="confirm_password" name="confirm_password" required>
+                    <div class="input-floating">
+                        <input type="password" id="confirm_password" name="confirm_password" required>
+                        <label for="confirm_password">Confirm Password</label>
+                    </div>
                 </div>
-                <button type="submit" class="btn-primary">Sign Up</button>
+                <button type="submit" class="btn-primary">Create Account</button>
             </form>
-            <p class="auth-link">Already have an account? <a href="/login">Login</a></p>
+            <p class="auth-link">Already have an account? <a href="/login">Sign in</a></p>
         </div>
     </div>
 </body>

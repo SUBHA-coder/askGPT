@@ -7,64 +7,127 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.2.12/marked.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <button class="new-chat-btn" id="newChatBtn">
-                <i class="fas fa-plus"></i> New Chat
-            </button>
-            <div class="chat-history">
-                <h3>Chat History</h3>
-                <div id="historyList">
-                    <!-- Chat history items will be added here -->
-                </div>
-            </div>
-        </div>
-
-        <div class="main-content">
-            <div class="header">
-                <h1>AskGPT</h1>
-                <div class="user-info">
-                    <span>Welcome, {{.User.Username}}</span>
-                    <a href="/logout" class="logout-btn">Logout</a>
-                </div>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <button class="new-chat-btn" id="newChatBtn">
+                    <i class="fas fa-plus"></i> New chat
+                </button>
             </div>
             
+            <div class="chat-history">
+                <div class="history-list" id="historyList">
+                    <!-- Chat history will be populated here -->
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span class="user-name">{{.User.Username}}</span>
+                </div>
+                <a href="/logout" class="logout-btn" title="Logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </div>
+        </aside>
+
+        <main class="main-content">
             <div class="chat-container">
                 <div class="messages" id="messages">
+                    {{if not .Messages}}
+                    <div class="welcome-screen">
+                        <h1>Welcome to AskGPT</h1>
+                        <div class="examples">
+                            <h2>Examples</h2>
+                            <div class="example-grid">
+                                <button class="example-btn">"Explain quantum computing"</button>
+                                <button class="example-btn">"Write a poem about spring"</button>
+                                <button class="example-btn">"How do I make pasta?"</button>
+                            </div>
+                        </div>
+                    </div>
+                    {{end}}
+                    
                     {{range .Messages}}
                     <div class="message {{if contains . "You:"}}user-message{{else}}ai-message{{end}}">
                         <div class="message-content">{{.}}</div>
                     </div>
                     {{end}}
                 </div>
-                
-                <form class="chat-form" id="chat-form">
-                    <div class="input-wrapper">
-                        <div class="textarea-container">
-                            <textarea id="message" name="message" placeholder="Type your message..." required></textarea>
-                            <div class="char-counter" id="charCounter">0/4000</div>
+
+                <div class="chat-input-container">
+                    <form id="chat-form" class="chat-form">
+                        <div class="input-wrapper">
+                            <textarea 
+                                id="message" 
+                                name="message" 
+                                placeholder="Send a message..."
+                                rows="1"
+                                required
+                            ></textarea>
+                            <button type="submit" class="send-button">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
                         </div>
-                        <button type="submit">Send</button>
+                    </form>
+                    <div class="input-footer">
+                        <p>AskGPT can make mistakes. Consider checking important information.</p>
                     </div>
-                </form>
+                </div>
             </div>
-        </div>
+        </main>
     </div>
 
     <script>
-        document.getElementById('chat-form').addEventListener('submit', async function(e) {
+        // WebSocket connection
+        const ws = new WebSocket('ws://' + window.location.host + '/ws');
+        const messagesDiv = document.getElementById('messages');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message');
+        const newChatBtn = document.getElementById('newChatBtn');
+
+        // Auto-resize textarea
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+        });
+
+        // Handle new chat button
+        newChatBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/new-chat', {
+                    method: 'POST',
+                });
+
+                if (response.ok) {
+                    messagesDiv.innerHTML = '';
+                    showWelcomeScreen();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+
+        // Handle chat form submission
+        chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const message = document.getElementById('message').value;
-            if (!message.trim()) return;
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Clear input and reset height
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
 
             // Add user message to chat
-            addMessage('You: ' + message);
-            document.getElementById('message').value = '';
+            addMessage('You: ' + message, 'user-message');
+
+            // Show typing indicator
+            showTypingIndicator();
 
             try {
                 const response = await fetch('/chat', {
@@ -75,63 +138,82 @@
                     body: 'message=' + encodeURIComponent(message)
                 });
 
-                if (response.ok) {
-                    // Message was sent successfully
-                } else {
-                    console.error('Error sending message');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
             } catch (error) {
                 console.error('Error:', error);
+                removeTypingIndicator();
+                addMessage('Error: Failed to send message', 'error-message');
             }
         });
 
-        function addMessage(text) {
-            const messagesDiv = document.getElementById('messages');
+        // Handle WebSocket messages
+        ws.onmessage = function(event) {
+            removeTypingIndicator();
+            addMessage(event.data, event.data.startsWith('You:') ? 'user-message' : 'ai-message');
+        };
+
+        // Helper functions
+        function addMessage(text, className) {
             const messageDiv = document.createElement('div');
-            messageDiv.className = 'message ' + (text.startsWith('You:') ? 'user-message' : 'ai-message');
-            messageDiv.innerHTML = `<div class="message-content">${text}</div>`;
+            messageDiv.className = 'message ' + className;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = text;
+            
+            messageDiv.appendChild(contentDiv);
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        // Set up WebSocket connection for real-time updates
-        const ws = new WebSocket('ws://' + window.location.host + '/ws');
-        ws.onmessage = function(event) {
-            addMessage(event.data);
-        };
+        function showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.className = 'message ai-message typing-indicator';
+            indicator.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+            indicator.id = 'typing-indicator';
+            messagesDiv.appendChild(indicator);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
 
-        // Add new chat functionality
-        document.getElementById('newChatBtn').addEventListener('click', async function() {
-            try {
-                const response = await fetch('/new-chat', {
-                    method: 'POST',
-                });
-
-                if (response.ok) {
-                    // Clear messages display
-                    document.getElementById('messages').innerHTML = '';
-                }
-            } catch (error) {
-                console.error('Error:', error);
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) {
+                indicator.remove();
             }
-        });
+        }
 
-        // Add character counter
-        const textarea = document.getElementById('message');
-        const charCounter = document.getElementById('charCounter');
-        const MAX_CHARS = 4000;
+        function showWelcomeScreen() {
+            const welcomeScreen = `
+                <div class="welcome-screen">
+                    <h1>Welcome to AskGPT</h1>
+                    <div class="examples">
+                        <h2>Examples</h2>
+                        <div class="example-grid">
+                            <button class="example-btn">"Explain quantum computing"</button>
+                            <button class="example-btn">"Write a poem about spring"</button>
+                            <button class="example-btn">"How do I make pasta?"</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            messagesDiv.innerHTML = welcomeScreen;
+            setupExampleButtons();
+        }
 
-        textarea.addEventListener('input', function() {
-            const length = this.value.length;
-            charCounter.textContent = `${length}/${MAX_CHARS}`;
-            charCounter.classList.toggle('error', length > MAX_CHARS);
-        });
+        function setupExampleButtons() {
+            document.querySelectorAll('.example-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const text = button.textContent.replace(/['"]/g, '');
+                    messageInput.value = text;
+                    chatForm.dispatchEvent(new Event('submit'));
+                });
+            });
+        }
 
-        // Auto-resize textarea
-        textarea.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
+        // Initial setup
+        setupExampleButtons();
     </script>
 </body>
 </html> 
