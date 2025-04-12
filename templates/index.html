@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AskGo AI Assistant</title>
+    <title>AskGPT</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -13,177 +13,73 @@
 </head>
 <body>
     <div class="container">
-        <div class="sidebar">
-            <button class="new-chat-btn">
-                <i class="fas fa-plus"></i> New Chat
-            </button>
-            <div class="chat-history">
-                <h3>Chat History</h3>
-                <div id="historyList">
-                    <!-- Chat history will be populated here -->
-                </div>
+        <div class="header">
+            <h1>AskGPT</h1>
+            <div class="user-info">
+                <span>Welcome, {{.User.Username}}</span>
+                <a href="/logout" class="logout-btn">Logout</a>
             </div>
         </div>
-        <div class="main-content">
-            <div class="chat-container" id="chatContainer">
+        
+        <div class="chat-container">
+            <div class="messages" id="messages">
                 {{range .Messages}}
-                <div class="message-container">
-                    <div class="message {{if contains . "You:"}}user-message{{else}}ai-message{{end}}">
-                        <div class="message-content">{{.}}</div>
-                    </div>
+                <div class="message {{if contains . "You:"}}user-message{{else}}ai-message{{end}}">
+                    {{.}}
                 </div>
                 {{end}}
-                <div id="typingIndicator" class="typing-indicator" style="display: none;">
-                    <div class="typing-dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                </div>
             </div>
-            <form id="chatForm" class="input-form">
-                <div class="input-wrapper">
-                    <div class="textarea-container">
-                        <textarea name="message" placeholder="Type your message here..." required></textarea>
-                        <div class="char-counter">0/4000</div>
-                    </div>
-                    <button type="submit" title="Send (Enter)">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
+            
+            <form class="chat-form" id="chat-form">
+                <input type="text" id="message" name="message" placeholder="Type your message..." required>
+                <button type="submit">Send</button>
             </form>
         </div>
     </div>
+
     <script>
-        $(document).ready(function() {
-            // Configure marked
-            marked.setOptions({
-                highlight: function(code, lang) {
-                    if (lang && hljs.getLanguage(lang)) {
-                        return hljs.highlight(code, { language: lang }).value;
-                    }
-                    return hljs.highlightAuto(code).value;
-                },
-                breaks: true
-            });
+        document.getElementById('chat-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const message = document.getElementById('message').value;
+            if (!message.trim()) return;
 
-            // Auto-scroll to bottom
-            function scrollToBottom() {
-                $('#chatContainer').scrollTop($('#chatContainer')[0].scrollHeight);
-            }
-            scrollToBottom();
+            // Add user message to chat
+            addMessage('You: ' + message);
+            document.getElementById('message').value = '';
 
-            // Handle form submission
-            $('#chatForm').on('submit', function(e) {
-                e.preventDefault();
-                const message = $('textarea[name="message"]').val();
-                if (!message.trim()) return;
-
-                // Add user message
-                const userMessageHtml = `
-                    <div class="message-container">
-                        <div class="message user-message">
-                            <div class="message-content">You: ${message}</div>
-                        </div>
-                    </div>
-                `;
-                $('#chatContainer').append(userMessageHtml);
-                $('textarea[name="message"]').val('');
-                updateCharCounter();
-                scrollToBottom();
-
-                // Show typing indicator
-                $('#typingIndicator').show();
-                scrollToBottom();
-
-                // Send message to server
-                $.ajax({
-                    url: '/chat',
+            try {
+                const response = await fetch('/chat', {
                     method: 'POST',
-                    data: { message: message },
-                    success: function(response) {
-                        $('#typingIndicator').hide();
-                        location.reload();
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    error: function() {
-                        $('#typingIndicator').hide();
-                        alert('Error sending message');
-                    }
+                    body: 'message=' + encodeURIComponent(message)
                 });
-            });
 
-            // Handle new chat button
-            $('.new-chat-btn').on('click', function() {
-                if (confirm('Start a new chat? This will clear the current conversation.')) {
-                    $.ajax({
-                        url: '/new-chat',
-                        method: 'POST',
-                        success: function() {
-                            location.reload();
-                        }
-                    });
-                }
-            });
-
-            // Auto-resize textarea
-            $('textarea').on('input', function() {
-                this.style.height = 'auto';
-                this.style.height = (this.scrollHeight) + 'px';
-                updateCharCounter();
-            });
-
-            // Character counter
-            function updateCharCounter() {
-                const text = $('textarea[name="message"]').val();
-                const count = text.length;
-                $('.char-counter').text(`${count}/4000`);
-                if (count > 4000) {
-                    $('.char-counter').addClass('error');
+                if (response.ok) {
+                    // Message was sent successfully
                 } else {
-                    $('.char-counter').removeClass('error');
+                    console.error('Error sending message');
                 }
+            } catch (error) {
+                console.error('Error:', error);
             }
-
-            // Process markdown and syntax highlighting
-            $('.message-content').each(function() {
-                const content = $(this).text();
-                if (content.startsWith('AI:')) {
-                    const markdownContent = content.substring(3);
-                    $(this).html(marked.parse(markdownContent));
-                    
-                    // Add copy buttons to code blocks
-                    $(this).find('pre').each(function() {
-                        const copyButton = $('<button class="copy-button" title="Copy code"><i class="fas fa-copy"></i></button>');
-                        $(this).prepend(copyButton);
-                    });
-                }
-            });
-
-            // Apply syntax highlighting
-            $('pre code').each(function() {
-                hljs.highlightElement(this);
-            });
-
-            // Handle copy button clicks
-            $('.copy-button').on('click', function() {
-                const codeBlock = $(this).siblings('code');
-                const code = codeBlock.text();
-                navigator.clipboard.writeText(code).then(() => {
-                    $(this).html('<i class="fas fa-check"></i>');
-                    setTimeout(() => {
-                        $(this).html('<i class="fas fa-copy"></i>');
-                    }, 2000);
-                });
-            });
-
-            // Keyboard shortcuts
-            $('textarea').on('keydown', function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    $('#chatForm').submit();
-                }
-            });
         });
+
+        function addMessage(text) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + (text.startsWith('You:') ? 'user-message' : 'ai-message');
+            messageDiv.textContent = text;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Set up WebSocket connection for real-time updates
+        const ws = new WebSocket('ws://' + window.location.host + '/ws');
+        ws.onmessage = function(event) {
+            addMessage(event.data);
+        };
     </script>
 </body>
 </html> 
