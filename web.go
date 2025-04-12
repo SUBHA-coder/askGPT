@@ -226,8 +226,8 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Only add to messages, don't broadcast (will be handled by WebSocket)
 	messages = append(messages, "You: "+userMessage)
-	broadcastMessage("You: " + userMessage)
 
 	requestBody := GroqRequest{
 		Messages: []ChatMessage{
@@ -277,14 +277,15 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 
 	response := groqResponse.Choices[0].Message.Content
 	messages = append(messages, "AI: "+response)
-	broadcastMessage("AI: " + response)
 
 	// Save updated chat history
 	if err := database.SaveChatHistory(user.ID, messages); err != nil {
 		fmt.Println("Error saving chat history:", err)
 	}
 
-	w.WriteHeader(http.StatusOK)
+	// Send response back to client
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"response": response})
 }
 
 func handleNewChat(w http.ResponseWriter, r *http.Request) {
