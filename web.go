@@ -127,6 +127,12 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	session.Values["user_id"] = user.ID.Hex()
 	session.Save(r, w)
 
+	// Load user's chat history
+	messages, err = database.GetChatHistory(user.ID)
+	if err != nil {
+		messages = make([]string, 0)
+	}
+
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
@@ -164,8 +170,21 @@ func handleSignup(w http.ResponseWriter, r *http.Request) {
 
 func handleLogout(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "session")
+	if userID, ok := session.Values["user_id"].(string); ok {
+		objID, err := primitive.ObjectIDFromHex(userID)
+		if err == nil {
+			// Save chat history before clearing session
+			if len(messages) > 0 {
+				database.SaveChatHistory(objID, messages)
+			}
+		}
+	}
+	
+	// Clear session and messages
 	delete(session.Values, "user_id")
 	session.Save(r, w)
+	messages = make([]string, 0)
+	
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
@@ -258,7 +277,7 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 	messages = append(messages, "AI: "+response)
 	broadcastMessage("AI: " + response)
 
-	// Save chat history
+	// Save updated chat history
 	if err := database.SaveChatHistory(user.ID, messages); err != nil {
 		fmt.Println("Error saving chat history:", err)
 	}
@@ -278,7 +297,16 @@ func handleNewChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Clear current messages
 	messages = make([]string, 0)
+	
+	// Clear chat history in database
+	err := database.ClearChatHistory(user.ID)
+	if err != nil {
+		http.Error(w, "Error clearing chat history", http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 

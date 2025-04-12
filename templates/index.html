@@ -13,27 +13,46 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>AskGPT</h1>
-            <div class="user-info">
-                <span>Welcome, {{.User.Username}}</span>
-                <a href="/logout" class="logout-btn">Logout</a>
+        <div class="sidebar">
+            <button class="new-chat-btn" id="newChatBtn">
+                <i class="fas fa-plus"></i> New Chat
+            </button>
+            <div class="chat-history">
+                <h3>Chat History</h3>
+                <div id="historyList">
+                    <!-- Chat history items will be added here -->
+                </div>
             </div>
         </div>
-        
-        <div class="chat-container">
-            <div class="messages" id="messages">
-                {{range .Messages}}
-                <div class="message {{if contains . "You:"}}user-message{{else}}ai-message{{end}}">
-                    {{.}}
+
+        <div class="main-content">
+            <div class="header">
+                <h1>AskGPT</h1>
+                <div class="user-info">
+                    <span>Welcome, {{.User.Username}}</span>
+                    <a href="/logout" class="logout-btn">Logout</a>
                 </div>
-                {{end}}
             </div>
             
-            <form class="chat-form" id="chat-form">
-                <input type="text" id="message" name="message" placeholder="Type your message..." required>
-                <button type="submit">Send</button>
-            </form>
+            <div class="chat-container">
+                <div class="messages" id="messages">
+                    {{range .Messages}}
+                    <div class="message {{if contains . "You:"}}user-message{{else}}ai-message{{end}}">
+                        <div class="message-content">{{.}}</div>
+                    </div>
+                    {{end}}
+                </div>
+                
+                <form class="chat-form" id="chat-form">
+                    <div class="input-wrapper">
+                        <div class="textarea-container">
+                            <textarea id="message" name="message" placeholder="Type your message..." required></textarea>
+                            <div class="char-counter" id="charCounter">0/4000</div>
+                        </div>
+                        <button type="submit">Send</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -70,7 +89,7 @@
             const messagesDiv = document.getElementById('messages');
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message ' + (text.startsWith('You:') ? 'user-message' : 'ai-message');
-            messageDiv.textContent = text;
+            messageDiv.innerHTML = `<div class="message-content">${text}</div>`;
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
@@ -80,6 +99,39 @@
         ws.onmessage = function(event) {
             addMessage(event.data);
         };
+
+        // Add new chat functionality
+        document.getElementById('newChatBtn').addEventListener('click', async function() {
+            try {
+                const response = await fetch('/new-chat', {
+                    method: 'POST',
+                });
+
+                if (response.ok) {
+                    // Clear messages display
+                    document.getElementById('messages').innerHTML = '';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+
+        // Add character counter
+        const textarea = document.getElementById('message');
+        const charCounter = document.getElementById('charCounter');
+        const MAX_CHARS = 4000;
+
+        textarea.addEventListener('input', function() {
+            const length = this.value.length;
+            charCounter.textContent = `${length}/${MAX_CHARS}`;
+            charCounter.classList.toggle('error', length > MAX_CHARS);
+        });
+
+        // Auto-resize textarea
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
     </script>
 </body>
 </html> 
