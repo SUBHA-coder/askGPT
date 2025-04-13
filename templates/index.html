@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AskGPT</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="../static/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -28,9 +28,9 @@
                     <div class="user-avatar">
                         <i class="fas fa-user"></i>
                     </div>
-                    <span class="user-name">{{.User.Username}}</span>
+                    <span class="user-name">Demo User</span>
                 </div>
-                <a href="/logout" class="logout-btn" title="Logout">
+                <a href="#" class="logout-btn" title="Logout">
                     <i class="fas fa-sign-out-alt"></i>
                 </a>
             </div>
@@ -39,7 +39,6 @@
         <main class="main-content">
             <div class="chat-container">
                 <div class="messages" id="messages">
-                    {{if not .Messages}}
                     <div class="welcome-screen">
                         <h1>Welcome to AskGPT</h1>
                         <div class="examples">
@@ -51,27 +50,6 @@
                             </div>
                         </div>
                     </div>
-                    {{end}}
-                    
-                    {{range .Messages}}
-                    <div class="message {{if contains . "You:"}}user-message{{else}}ai-message{{end}}">
-                        <div class="avatar">
-                            {{if contains . "You:"}}
-                            <i class="fas fa-user"></i>
-                            {{else}}
-                            <i class="fas fa-robot"></i>
-                            {{end}}
-                        </div>
-                        <div class="message-content">
-                            {{if contains . "You:"}}
-                                {{trimPrefix . "You: "}}
-                            {{else}}
-                                {{$content := trimPrefix . "AI: "}}
-                                {{formatMessage $content}}
-                            {{end}}
-                        </div>
-                    </div>
-                    {{end}}
                 </div>
 
                 <div class="chat-input-container">
@@ -98,8 +76,6 @@
     </div>
 
     <script>
-        // WebSocket connection
-        const ws = new WebSocket('ws://' + window.location.host + '/ws');
         const messagesDiv = document.getElementById('messages');
         const chatForm = document.getElementById('chat-form');
         const messageInput = document.getElementById('message');
@@ -114,14 +90,8 @@
         // Handle new chat button
         newChatBtn.addEventListener('click', async () => {
             try {
-                const response = await fetch('/new-chat', {
-                    method: 'POST',
-                });
-
-                if (response.ok) {
-                    messagesDiv.innerHTML = '';
-                    showWelcomeScreen();
-                }
+                messagesDiv.innerHTML = '';
+                showWelcomeScreen();
             } catch (error) {
                 console.error('Error:', error);
             }
@@ -143,60 +113,14 @@
             // Show typing indicator
             showTypingIndicator();
 
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: 'message=' + encodeURIComponent(message)
-                });
-
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-            } catch (error) {
-                console.error('Error:', error);
+            // Simulate AI response for frontend demo
+            setTimeout(() => {
                 removeTypingIndicator();
-                addMessage('Error: Failed to send message', 'error-message');
-            }
+                addMessage('AI: This is a demo response. Connect to backend for real AI responses.', 'ai-message');
+            }, 1000);
         });
 
-        // Handle WebSocket messages
-        ws.onmessage = function(event) {
-            removeTypingIndicator();
-            addMessage(event.data, event.data.startsWith('You:') ? 'user-message' : 'ai-message');
-        };
-
         // Helper functions
-        function formatMessage(text) {
-            // Check if the text contains code blocks
-            if (text.includes('```')) {
-                return text.replace(/```(\w*)\n([\s\S]*?)```/g, function(match, language, code) {
-                    return `
-                        <div class="code-block">
-                            <div class="code-header">
-                                <span class="code-language">${language || 'plaintext'}</span>
-                                <button class="copy-button" onclick="copyCode(this)">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                            </div>
-                            <pre><code class="${language}">${escapeHtml(code.trim())}</code></pre>
-                        </div>
-                    `;
-                });
-            }
-            
-            // Check for inline code
-            text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-            
-            // Convert URLs to links
-            text = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
-            
-            // Convert newlines to <br>
-            return text.replace(/\n/g, '<br>');
-        }
-
         function addMessage(text, className) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message ' + className;
@@ -212,45 +136,26 @@
             
             // Remove prefix and format content
             const content = text.replace(/^(You: |AI: )/, '');
-            contentDiv.innerHTML = className === 'user-message' ? 
-                content : 
-                formatMessage(content);
+            contentDiv.textContent = content;
             
             messageDiv.appendChild(avatarDiv);
             messageDiv.appendChild(contentDiv);
             messagesDiv.appendChild(messageDiv);
             
-            // Initialize syntax highlighting for code blocks
-            messageDiv.querySelectorAll('pre code').forEach((block) => {
-                hljs.highlightElement(block);
-            });
-            
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function copyCode(button) {
-            const codeBlock = button.closest('.code-block').querySelector('code');
-            const text = codeBlock.textContent;
-            
-            navigator.clipboard.writeText(text).then(() => {
-                const icon = button.querySelector('i');
-                icon.className = 'fas fa-check';
-                setTimeout(() => {
-                    icon.className = 'fas fa-copy';
-                }, 2000);
-            });
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
         }
 
         function showTypingIndicator() {
             const indicator = document.createElement('div');
             indicator.className = 'message ai-message typing-indicator';
-            indicator.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+            indicator.innerHTML = `
+                <div class="avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="typing-dots">
+                    <span></span><span></span><span></span>
+                </div>
+            `;
             indicator.id = 'typing-indicator';
             messagesDiv.appendChild(indicator);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;

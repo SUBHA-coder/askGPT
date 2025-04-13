@@ -4,50 +4,134 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - AskGPT</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="../static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="auth-body">
     <div class="auth-container">
         <div class="auth-box">
             <div class="auth-header">
-                <img src="/static/img/logo.png" alt="AskGPT Logo" class="auth-logo">
+                <div class="auth-logo">
+                    <i class="fas fa-robot"></i>
+                </div>
                 <h1>Create Account</h1>
-                <p class="auth-subtitle">Start your journey with AskGPT</p>
+                <p class="auth-subtitle">Start chatting with AskGPT</p>
             </div>
 
-            {{if .Error}}
-            <div class="error-message">{{.Error}}</div>
-            {{end}}
+            <div class="error-message" style="display: none;">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="error-text"></span>
+            </div>
 
-            <form action="/signup" method="POST" class="auth-form">
+            <form id="signup-form" class="auth-form">
                 <div class="form-group">
                     <div class="input-floating">
-                        <input type="text" id="username" name="username" required>
-                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" placeholder=" " required>
+                        <label for="username">
+                            <i class="fas fa-user"></i>
+                            Username
+                        </label>
                     </div>
                 </div>
                 <div class="form-group">
                     <div class="input-floating">
-                        <input type="email" id="email" name="email" required>
-                        <label for="email">Email address</label>
+                        <input type="email" id="email" name="email" placeholder=" " required>
+                        <label for="email">
+                            <i class="fas fa-envelope"></i>
+                            Email address
+                        </label>
                     </div>
                 </div>
                 <div class="form-group">
                     <div class="input-floating">
-                        <input type="password" id="password" name="password" required>
-                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" placeholder=" " required>
+                        <label for="password">
+                            <i class="fas fa-lock"></i>
+                            Password
+                        </label>
+                        <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
                 </div>
                 <div class="form-group">
                     <div class="input-floating">
-                        <input type="password" id="confirm_password" name="confirm_password" required>
-                        <label for="confirm_password">Confirm Password</label>
+                        <input type="password" id="confirm_password" name="confirm_password" placeholder=" " required>
+                        <label for="confirm_password">
+                            <i class="fas fa-lock"></i>
+                            Confirm Password
+                        </label>
+                        <button type="button" class="password-toggle" onclick="togglePassword('confirm_password')">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
                 </div>
-                <button type="submit" class="btn-primary">Create Account</button>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-user-plus"></i>
+                    Create Account
+                </button>
             </form>
-            <p class="auth-link">Already have an account? <a href="/login">Sign in</a></p>
+            <p class="auth-link">
+                Already have an account? <a href="login.html">Sign in</a>
+            </p>
         </div>
     </div>
+
+    <script>
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const icon = input.nextElementSibling.nextElementSibling.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+
+        // Add floating label animation
+        document.querySelectorAll('.input-floating input').forEach(input => {
+            input.addEventListener('focus', () => {
+                input.parentElement.classList.add('focused');
+            });
+            
+            input.addEventListener('blur', () => {
+                if (!input.value) {
+                    input.parentElement.classList.remove('focused');
+                }
+            });
+
+            // Check initial state
+            if (input.value) {
+                input.parentElement.classList.add('focused');
+            }
+        });
+
+        // Form handling for demo
+        const form = document.getElementById('signup-form');
+        const errorDiv = document.querySelector('.error-message');
+        const errorText = document.getElementById('error-text');
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const password = document.getElementById('password');
+            const confirmPassword = document.getElementById('confirm_password');
+
+            // Reset error message
+            errorDiv.style.display = 'none';
+
+            // Validate passwords match
+            if (password.value !== confirmPassword.value) {
+                errorDiv.style.display = 'flex';
+                errorText.textContent = 'Passwords do not match!';
+                return;
+            }
+
+            // For demo purposes, redirect to index.html
+            window.location.href = 'index.html';
+        });
+    </script>
 </body>
 </html> 
